@@ -30,10 +30,10 @@ async function login() {
             localStorage.setItem('role', currentRole);
             showDashboard();
         } else {
-            errorDiv.innerText = data.message || 'Login failed';
+            errorDiv.innerText = data.message || 'Access Denied: Invalid User';
         }
     } catch(err) {
-        errorDiv.innerText = 'Network error';
+        errorDiv.innerText = 'System Node Disconnected (Network Error)';
     }
 }
 
@@ -53,11 +53,21 @@ function showLogin() {
 function showDashboard() {
     document.getElementById('login-view').classList.add('hidden');
     document.getElementById('dashboard-view').classList.remove('hidden');
-    document.getElementById('welcome-message').innerText = `Dashboard (${currentToken})`;
     
-    // Set default date to today in YYYY-MM-DD format
+    document.getElementById('role-badge').innerText = currentRole.toUpperCase();
+    
     document.getElementById('new-date').valueAsDate = new Date();
     loadTasks();
+}
+
+function toggleModal(id) {
+    const el = document.getElementById(id);
+    if (el.classList.contains('hidden')) {
+        el.classList.remove('hidden');
+        document.getElementById('new-title').focus();
+    } else {
+        el.classList.add('hidden');
+    }
 }
 
 async function loadTasks() {
@@ -67,17 +77,23 @@ async function loadTasks() {
         });
         if (res.status === 401) { logout(); return; }
         const tasks = await res.json();
-        renderTasks(tasks);
+        renderTimeline(tasks);
     } catch(e) {
-        console.error("Failed to load tasks", e);
+        console.error("Failed to sync pulse stream", e);
     }
 }
 
-function renderTasks(tasks) {
+function formatDate(ds) {
+    if(!ds || ds === 'No Date') return 'Unscheduled';
+    const d = new Date(ds);
+    if(isNaN(d.getTime())) return ds;
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function renderTimeline(tasks) {
     const container = document.getElementById('tasks-container');
     container.innerHTML = '';
     
-    // Group by Date
     const grouped = {};
     tasks.forEach(task => {
         const d = task.due_date || 'No Date';
@@ -85,61 +101,44 @@ function renderTasks(tasks) {
         grouped[d].push(task);
     });
     
-    // Sort dates
     const dates = Object.keys(grouped).sort();
     
     dates.forEach(date => {
-        const groupDiv = document.createElement('div');
-        groupDiv.className = 'date-group';
+        const dsArr = grouped[date];
+        
+        const col = document.createElement('div');
+        col.className = 'day-column';
         
         const header = document.createElement('div');
-        header.className = 'date-header';
-        header.innerText = date;
-        groupDiv.appendChild(header);
+        header.className = 'day-header';
+        header.innerHTML = `<span>${formatDate(date)}</span> <span class="task-count">${dsArr.length}</span>`;
+        col.appendChild(header);
         
-        grouped[date].forEach(task => {
+        const tasksContainer = document.createElement('div');
+        tasksContainer.className = 'day-tasks';
+        
+        dsArr.forEach(task => {
             const card = document.createElement('div');
-            card.className = `task-card ${task.priority.toLowerCase()} ${task.status === 'done' ? 'done' : ''}`;
+            card.className = `pulse-card ${task.priority.toLowerCase()} ${task.status === 'done' ? 'done' : ''}`;
             
-            const info = document.createElement('div');
-            info.className = 'task-info';
+            const titleText = currentRole === 'admin' ? `[${task.user_id}] ${task.title}` : task.title;
             
-            const title = document.createElement('div');
-            title.className = 'task-title';
-            title.innerText = currentRole === 'admin' ? `[${task.user_id}] ${task.title}` : task.title;
-            
-            const meta = document.createElement('div');
-            meta.className = 'task-meta';
-            meta.innerHTML = `<span class="priority-badge">${task.priority}</span>`;
-            if (task.status === 'done' && task.completion_time) {
-                meta.innerHTML += `<span>Completed: ${task.completion_time}</span>`;
-            }
-            
-            info.appendChild(title);
-            info.appendChild(meta);
-            
-            const actions = document.createElement('div');
-            actions.className = 'task-actions';
-            
-            if (task.status !== 'done') {
-                const checkBtn = document.createElement('button');
-                checkBtn.className = 'action-btn complete';
-                checkBtn.innerHTML = '✓';
-                checkBtn.onclick = () => updateTaskStatus(task.id, 'done');
-                actions.appendChild(checkBtn);
-            }
-            
-            const delBtn = document.createElement('button');
-            delBtn.className = 'action-btn delete';
-            delBtn.innerHTML = '✕';
-            delBtn.onclick = () => deleteTask(task.id);
-            actions.appendChild(delBtn);
-            
-            card.appendChild(info);
-            card.appendChild(actions);
-            groupDiv.appendChild(card);
+            card.innerHTML = `
+                <div class="task-title">${titleText}</div>
+                <div class="task-meta">
+                    <span>${task.priority} Priority</span>
+                    ${task.status === 'done' && task.completion_time ? `<span>✓ ${task.completion_time.split(' ')[0]}</span>` : ''}
+                </div>
+                <div class="actions-hover">
+                    ${task.status !== 'done' ? `<button class="btn-icon check" onclick="updateTaskStatus('${task.id}', 'done', event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg></button>` : ''}
+                    <button class="btn-icon trash" onclick="deleteTask('${task.id}', event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                </div>
+            `;
+            tasksContainer.appendChild(card);
         });
-        container.appendChild(groupDiv);
+        
+        col.appendChild(tasksContainer);
+        container.appendChild(col);
     });
 }
 
@@ -152,39 +151,30 @@ async function addTask() {
     
     await fetch(`${API_URL}/tasks`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': currentToken
-        },
-        body: JSON.stringify({
-            title: title,
-            due_date: date,
-            priority: priority
-        })
+        headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
+        body: JSON.stringify({ title, due_date: date, priority })
     });
     
     document.getElementById('new-title').value = '';
+    toggleModal('add-task-modal');
     loadTasks();
 }
 
-async function updateTaskStatus(id, status) {
+async function updateTaskStatus(id, status, e) {
+    if(e) e.stopPropagation();
     await fetch(`${API_URL}/tasks/${id}`, {
         method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': currentToken
-        },
-        body: JSON.stringify({ status: status })
+        headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
+        body: JSON.stringify({ status })
     });
     loadTasks();
 }
 
-async function deleteTask(id) {
+async function deleteTask(id, e) {
+    if(e) e.stopPropagation();
     await fetch(`${API_URL}/tasks/${id}`, {
         method: 'DELETE',
-        headers: {
-            'Authorization': currentToken
-        }
+        headers: { 'Authorization': currentToken }
     });
     loadTasks();
 }

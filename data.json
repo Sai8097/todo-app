@@ -1,14 +1,24 @@
 [
     {
+        "id": "53fa976a-f2af-4730-a915-c5c3bbae1d58",
+        "user_id": "user1",
         "title": "eat well",
         "description": "eat 3 meals a day ",
         "status": "pending",
+        "due_date": "2026-03-31",
+        "priority": "Medium",
+        "completion_time": null,
         "created_at": "2026-03-31 00:49:09"
     },
     {
+        "id": "16f1fa77-262a-4ce0-ba07-49a8c9030ad0",
+        "user_id": "user1",
         "title": "5",
         "description": "444",
         "status": "pending",
+        "due_date": "2026-03-31",
+        "priority": "Medium",
+        "completion_time": null,
         "created_at": "2026-03-31 00:49:30"
     }
 ]

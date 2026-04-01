@@ -1,52 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Premium Todo App</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <title>Aesthetic Todo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
+    <!-- Animated background layers -->
+    <div class="bg-animated"></div>
+    <div class="bg-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Login Screen -->
     <div id="login-view" class="view">
-        <div class="glass-card login-card">
-            <h1>Welcome Back</h1>
-            <p>Login to manage your tasks</p>
-            <input type="text" id="username" placeholder="Username (admin, user1, user2)">
-            <button class="btn-primary" onclick="login()">Enter</button>
+        <div class="glass-container login-card">
+            <h1>Welcome.</h1>
+            <p>Access your timeline.</p>
+            <div class="input-modern">
+                <input type="text" id="username" placeholder="Username (admin, user1, user2)">
+            </div>
+            <button class="btn-glow" onclick="login()">Enter Workspace</button>
             <div id="login-error" class="error"></div>
         </div>
     </div>
 
+    <!-- Dashboard Screen -->
     <div id="dashboard-view" class="view hidden">
         <nav class="glass-nav">
-            <h1 id="welcome-message">Dashboard</h1>
-            <button class="btn-secondary" onclick="logout()">Logout</button>
-        </nav>
-        
-        <main class="dashboard-content">
-            <div class="glass-card actions-card">
-                <h2>Add Task</h2>
-                <div class="form-group">
-                    <input type="text" id="new-title" placeholder="What needs to be done?">
-                </div>
-                <div class="form-group row">
-                    <input type="date" id="new-date">
-                    <select id="new-priority">
-                        <option value="High">High Priority</option>
-                        <option value="Medium" selected>Medium Priority</option>
-                        <option value="Low">Low Priority</option>
-                    </select>
-                </div>
-                <button class="btn-primary" onclick="addTask()">Add Task</button>
+            <div>
+                <h1 id="welcome-message" class="gradient-text">Timeline</h1>
+                <span id="role-badge" class="badge"></span>
             </div>
-            
-            <div class="tasks-container" id="tasks-container">
-                <!-- Tasks will be injected here -->
+            <!-- Logout Icon -->
+            <button class="btn-transparent" onclick="logout()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+            </button>
+        </nav>
+
+        <main class="dashboard-content">
+            <div class="timeline-board" id="tasks-container">
+                <!-- Data columns are dynamically injected here -->
             </div>
         </main>
+
+        <!-- Floating Action Button -->
+        <button class="fab" onclick="toggleModal('add-task-modal')">+</button>
+    </div>
+
+    <!-- Add Task Modal -->
+    <div class="modal-overlay hidden" id="add-task-modal">
+        <div class="modal-content glass-container">
+            <h2>New Pulse</h2>
+            <div class="form-group">
+                <input type="text" id="new-title" class="input-flush" placeholder="What's the next pulse?">
+            </div>
+            <div class="form-row">
+                <input type="date" id="new-date" class="input-pill">
+                <select id="new-priority" class="input-pill">
+                    <option value="High">🔥 High</option>
+                    <option value="Medium" selected>⚡ Medium</option>
+                    <option value="Low">🌱 Low</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-transparent" style="flex: 1;" onclick="toggleModal('add-task-modal')">Cancel</button>
+                <button class="btn-glow" style="flex: 2;" onclick="addTask()">Ignite Task</button>
+            </div>
+        </div>
     </div>
 
     <script src="app.js"></script>
 </body>
+
 </html>
