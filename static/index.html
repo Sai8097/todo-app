@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Todo App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="login-view" class="view">
+        <div class="glass-card login-card">
+            <h1>Welcome Back</h1>
+            <p>Login to manage your tasks</p>
+            <input type="text" id="username" placeholder="Username (admin, user1, user2)">
+            <button class="btn-primary" onclick="login()">Enter</button>
+            <div id="login-error" class="error"></div>
+        </div>
+    </div>
+
+    <div id="dashboard-view" class="view hidden">
+        <nav class="glass-nav">
+            <h1 id="welcome-message">Dashboard</h1>
+            <button class="btn-secondary" onclick="logout()">Logout</button>
+        </nav>
+        
+        <main class="dashboard-content">
+            <div class="glass-card actions-card">
+                <h2>Add Task</h2>
+                <div class="form-group">
+                    <input type="text" id="new-title" placeholder="What needs to be done?">
+                </div>
+                <div class="form-group row">
+                    <input type="date" id="new-date">
+                    <select id="new-priority">
+                        <option value="High">High Priority</option>
+                        <option value="Medium" selected>Medium Priority</option>
+                        <option value="Low">Low Priority</option>
+                    </select>
+                </div>
+                <button class="btn-primary" onclick="addTask()">Add Task</button>
+            </div>
+            
+            <div class="tasks-container" id="tasks-container">
+                <!-- Tasks will be injected here -->
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
