@@ -1,182 +1,365 @@
 let currentToken = localStorage.getItem('token') || null;
 let currentRole = localStorage.getItem('role') || null;
-
 const API_URL = '/api';
 
+let allTasks = [];
+let currentFilter = 'all';
+
+// Initialize
 function init() {
-    if (currentToken) {
-        showDashboard();
-    } else {
-        showLogin();
-    }
+  if (currentToken) {
+    showDashboard();
+  } else {
+    showLogin();
+  }
 }
 
+// ==========================
+// AUTHENTICATION
+// ==========================
 async function login() {
-    const userInp = document.getElementById('username').value;
-    const errorDiv = document.getElementById('login-error');
-    errorDiv.innerText = '';
-    
-    try {
-        const res = await fetch(`${API_URL}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: userInp })
-        });
-        const data = await res.json();
-        if (data.success) {
-            currentToken = data.token;
-            currentRole = data.role;
-            localStorage.setItem('token', currentToken);
-            localStorage.setItem('role', currentRole);
-            showDashboard();
-        } else {
-            errorDiv.innerText = data.message || 'Access Denied: Invalid User';
-        }
-    } catch(err) {
-        errorDiv.innerText = 'System Node Disconnected (Network Error)';
+  const userInp = document.getElementById('inp-username').value;
+  const passInp = document.getElementById('inp-password').value;
+  const errorDiv = document.getElementById('login-error');
+  
+  const btnText = document.getElementById('btn-login-text');
+  const btnSpin = document.getElementById('btn-login-spin');
+
+  if (!userInp || !passInp) {
+    errorDiv.innerText = "Please enter both username and password.";
+    errorDiv.classList.remove('hidden');
+    return;
+  }
+
+  errorDiv.classList.add('hidden');
+  btnText.classList.add('hidden');
+  btnSpin.classList.remove('hidden');
+  document.getElementById('btn-login').disabled = true;
+
+  try {
+    const res = await fetch(`${API_URL}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: userInp, password: passInp })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      currentToken = data.token;
+      currentRole = data.role;
+      localStorage.setItem('token', currentToken);
+      localStorage.setItem('role', currentRole);
+      
+      // Clear inputs
+      document.getElementById('inp-username').value = '';
+      document.getElementById('inp-password').value = '';
+      
+      showDashboard();
+    } else {
+      errorDiv.innerText = data.message;
+      errorDiv.classList.remove('hidden');
     }
+  } catch (err) {
+    errorDiv.innerText = "Server error. Is the backend running?";
+    errorDiv.classList.remove('hidden');
+  } finally {
+    btnText.classList.remove('hidden');
+    btnSpin.classList.add('hidden');
+    document.getElementById('btn-login').disabled = false;
+  }
 }
 
 function logout() {
-    currentToken = null;
-    currentRole = null;
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
-    showLogin();
+  localStorage.clear();
+  currentToken = null;
+  currentRole = null;
+  showLogin();
+  allTasks = [];
 }
 
+function togglePw() {
+  const inp = document.getElementById('inp-password');
+  const btn = document.getElementById('pw-eye');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    btn.innerText = '⊘';
+  } else {
+    inp.type = 'password';
+    btn.innerText = '👁';
+  }
+}
+
+// ==========================
+// VIEWS & UI
+// ==========================
 function showLogin() {
-    document.getElementById('login-view').classList.remove('hidden');
-    document.getElementById('dashboard-view').classList.add('hidden');
+  document.getElementById('page-login').classList.remove('hidden');
+  document.getElementById('page-dashboard').classList.add('hidden');
 }
 
 function showDashboard() {
-    document.getElementById('login-view').classList.add('hidden');
-    document.getElementById('dashboard-view').classList.remove('hidden');
-    
-    document.getElementById('role-badge').innerText = currentRole.toUpperCase();
-    
-    document.getElementById('new-date').valueAsDate = new Date();
-    loadTasks();
+  document.getElementById('page-login').classList.add('hidden');
+  document.getElementById('page-dashboard').classList.remove('hidden');
+  document.getElementById('badge-user').innerText = currentToken;
+  document.getElementById('badge-role').innerText = currentRole.toUpperCase();
+
+  const filterUserSelect = document.getElementById('filter-user');
+  const assignGroup = document.getElementById('assign-group');
+  const usersCard = document.getElementById('stat-users-card');
+
+  if (currentRole === 'admin') {
+    filterUserSelect.classList.remove('hidden');
+    assignGroup.classList.remove('hidden');
+    usersCard.style.display = 'block';
+    loadUsers();
+  } else {
+    filterUserSelect.classList.add('hidden');
+    assignGroup.classList.add('hidden');
+    usersCard.style.display = 'none';
+  }
+
+  loadTasks();
 }
 
-function toggleModal(id) {
-    const el = document.getElementById(id);
-    if (el.classList.contains('hidden')) {
-        el.classList.remove('hidden');
-        document.getElementById('new-title').focus();
-    } else {
-        el.classList.add('hidden');
+function setFilter(flt) {
+  currentFilter = flt;
+  document.querySelectorAll('.filter-tabs .tab').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-${flt}`).classList.add('active');
+  renderTasks();
+}
+
+// ==========================
+// DATA FETCHING
+// ==========================
+async function loadUsers() {
+  try {
+    const res = await fetch(`${API_URL}/users`, { headers: { 'Authorization': currentToken } });
+    if (res.ok) {
+      const users = await res.json();
+      document.getElementById('stat-users').innerText = users.length;
+      
+      const filterSelect = document.getElementById('filter-user');
+      const assignSelect = document.getElementById('inp-assign');
+      
+      // Keep first option
+      filterSelect.innerHTML = '<option value="">All Users</option>';
+      assignSelect.innerHTML = '<option value="">— Assign to myself (admin) —</option>';
+
+      users.forEach(u => {
+        filterSelect.innerHTML += `<option value="${u.username}">${u.username}</option>`;
+        assignSelect.innerHTML += `<option value="${u.username}">${u.username}</option>`;
+      });
     }
+  } catch (err) { console.error(err); }
 }
 
 async function loadTasks() {
-    try {
-        const res = await fetch(`${API_URL}/tasks`, {
-            headers: { 'Authorization': currentToken }
-        });
-        if (res.status === 401) { logout(); return; }
-        const tasks = await res.json();
-        renderTimeline(tasks);
-    } catch(e) {
-        console.error("Failed to sync pulse stream", e);
+  try {
+    const res = await fetch(`${API_URL}/tasks`, { headers: { 'Authorization': currentToken } });
+    if (res.status === 401) return logout();
+    if (res.ok) {
+      allTasks = await res.json();
+      // sort by created date desc
+      allTasks.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      renderTasks();
     }
+  } catch (err) { console.error(err); }
 }
 
-function formatDate(ds) {
-    if(!ds || ds === 'No Date') return 'Unscheduled';
-    const d = new Date(ds);
-    if(isNaN(d.getTime())) return ds;
-    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+// ==========================
+// RENDER TASKS
+// ==========================
+function renderTasks() {
+  const container = document.getElementById('task-list');
+  const filterUser = document.getElementById('filter-user').value;
+  
+  let filtered = allTasks;
+
+  if (filterUser) {
+    filtered = filtered.filter(t => t.user_id === filterUser);
+  }
+
+  const statTotal = filtered.length;
+  const statDone = filtered.filter(t => t.status === 'done').length;
+  const statPend = statTotal - statDone;
+
+  document.getElementById('stat-total').innerText = statTotal;
+  document.getElementById('stat-done').innerText = statDone;
+  document.getElementById('stat-pending').innerText = statPend;
+
+  if (currentFilter === 'pending') {
+    filtered = filtered.filter(t => t.status !== 'done');
+  } else if (currentFilter === 'done') {
+    filtered = filtered.filter(t => t.status === 'done');
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <p>No tasks found in this view.</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = '';
+  filtered.forEach(task => {
+    container.appendChild(createTaskCard(task));
+  });
 }
 
-function renderTimeline(tasks) {
-    const container = document.getElementById('tasks-container');
-    container.innerHTML = '';
-    
-    const grouped = {};
-    tasks.forEach(task => {
-        const d = task.due_date || 'No Date';
-        if(!grouped[d]) grouped[d] = [];
-        grouped[d].push(task);
-    });
-    
-    const dates = Object.keys(grouped).sort();
-    
-    dates.forEach(date => {
-        const dsArr = grouped[date];
-        
-        const col = document.createElement('div');
-        col.className = 'day-column';
-        
-        const header = document.createElement('div');
-        header.className = 'day-header';
-        header.innerHTML = `<span>${formatDate(date)}</span> <span class="task-count">${dsArr.length}</span>`;
-        col.appendChild(header);
-        
-        const tasksContainer = document.createElement('div');
-        tasksContainer.className = 'day-tasks';
-        
-        dsArr.forEach(task => {
-            const card = document.createElement('div');
-            card.className = `pulse-card ${task.priority.toLowerCase()} ${task.status === 'done' ? 'done' : ''}`;
-            
-            const titleText = currentRole === 'admin' ? `[${task.user_id}] ${task.title}` : task.title;
-            
-            card.innerHTML = `
-                <div class="task-title">${titleText}</div>
-                <div class="task-meta">
-                    <span>${task.priority} Priority</span>
-                    ${task.status === 'done' && task.completion_time ? `<span>✓ ${task.completion_time.split(' ')[0]}</span>` : ''}
-                </div>
-                <div class="actions-hover">
-                    ${task.status !== 'done' ? `<button class="btn-icon check" onclick="updateTaskStatus('${task.id}', 'done', event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg></button>` : ''}
-                    <button class="btn-icon trash" onclick="deleteTask('${task.id}', event)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
-                </div>
-            `;
-            tasksContainer.appendChild(card);
-        });
-        
-        col.appendChild(tasksContainer);
-        container.appendChild(col);
-    });
+function createTaskCard(task) {
+  const isDone = task.status === 'done';
+  const div = document.createElement('div');
+  div.className = `task-card ${isDone ? 'is-done' : ''}`;
+
+  const checkIcon = isDone ? '✓' : '';
+  const priorClass = task.priority.toLowerCase();
+  
+  let userBadge = '';
+  if (currentRole === 'admin') {
+    userBadge = `<span class="user-label">@${task.user_id}</span>`;
+  }
+
+  div.innerHTML = `
+    <button class="check-btn" onclick="toggleTaskStatus('${task.id}', '${task.status}')" title="${isDone ? 'Mark Pending' : 'Mark Complete'}">
+      ${checkIcon}
+    </button>
+    <div class="task-content">
+      <div class="task-header">
+        <div class="task-title">${task.title}</div>
+        <div class="task-actions">
+          <button class="btn-icon" onclick="openEditModal('${task.id}')" title="Edit">✎</button>
+          <button class="btn-icon del" onclick="deleteTask('${task.id}')" title="Delete">🗑</button>
+        </div>
+      </div>
+      ${task.description ? `<div class="task-desc">${task.description}</div>` : ''}
+      <div class="task-meta">
+        ${userBadge}
+        <span class="badge ${priorClass}">${task.priority}</span>
+        ${task.due_date ? `<span class="date-badge">📅 ${task.due_date}</span>` : ''}
+      </div>
+    </div>
+  `;
+  return div;
 }
 
-async function addTask() {
-    const title = document.getElementById('new-title').value;
-    const date = document.getElementById('new-date').value;
-    const priority = document.getElementById('new-priority').value;
-    
-    if(!title.trim()) return;
-    
-    await fetch(`${API_URL}/tasks`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
-        body: JSON.stringify({ title, due_date: date, priority })
+// ==========================
+// MODALS & CRUD
+// ==========================
+function openAddModal() {
+  document.getElementById('modal-title').innerText = "Add Task";
+  document.getElementById('edit-task-id').value = '';
+  document.getElementById('inp-title').value = '';
+  document.getElementById('inp-desc').value = '';
+  document.getElementById('inp-priority').value = 'Medium';
+  document.getElementById('inp-due').value = '';
+  if (currentRole === 'admin') {
+    document.getElementById('inp-assign').value = document.getElementById('filter-user').value || '';
+  }
+  document.getElementById('modal-error').classList.add('hidden');
+  document.getElementById('modal-task').classList.remove('hidden');
+  document.getElementById('inp-title').focus();
+}
+
+function openEditModal(taskId) {
+  const task = allTasks.find(t => t.id === taskId);
+  if(!task) return;
+
+  document.getElementById('modal-title').innerText = "Edit Task";
+  document.getElementById('edit-task-id').value = task.id;
+  document.getElementById('inp-title').value = task.title;
+  document.getElementById('inp-desc').value = task.description;
+  document.getElementById('inp-priority').value = task.priority;
+  document.getElementById('inp-due').value = task.due_date;
+  
+  if (currentRole === 'admin') {
+    // Cannot reassign safely after creation but let's let admin edit assignment
+    document.getElementById('inp-assign').value = task.user_id !== currentToken ? task.user_id : '';
+  }
+
+  document.getElementById('modal-error').classList.add('hidden');
+  document.getElementById('modal-task').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('modal-task').classList.add('hidden');
+}
+
+function closeModalOnBg(e) {
+  if (e.target.id === 'modal-task') closeModal();
+}
+
+async function saveTask() {
+  const editId = document.getElementById('edit-task-id').value;
+  const title = document.getElementById('inp-title').value;
+  const desc = document.getElementById('inp-desc').value;
+  const prio = document.getElementById('inp-priority').value;
+  const due = document.getElementById('inp-due').value;
+  let userId = undefined;
+  
+  if (currentRole === 'admin') {
+    userId = document.getElementById('inp-assign').value;
+  }
+
+  if (!title) {
+    document.getElementById('modal-error').innerText = "Title is required";
+    document.getElementById('modal-error').classList.remove('hidden');
+    return;
+  }
+
+  const payload = { title, description: desc, priority: prio, due_date: due };
+  if (userId) payload.user_id = userId;
+
+  const url = editId ? `${API_URL}/tasks/${editId}` : `${API_URL}/tasks`;
+  const method = editId ? 'PUT' : 'POST';
+
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
+      body: JSON.stringify(payload)
     });
-    
-    document.getElementById('new-title').value = '';
-    toggleModal('add-task-modal');
+    if (res.ok) {
+      closeModal();
+      loadTasks();
+    } else {
+      const data = await res.json();
+      document.getElementById('modal-error').innerText = data.error || "Operation failed";
+      document.getElementById('modal-error').classList.remove('hidden');
+    }
+  } catch(err) { console.error(err); }
+}
+
+async function toggleTaskStatus(taskId, currentStatus) {
+  const newStatus = currentStatus === 'done' ? 'pending' : 'done';
+  try {
+    await fetch(`${API_URL}/tasks/${taskId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
+      body: JSON.stringify({ status: newStatus })
+    });
     loadTasks();
+  } catch(err) { console.error(err); }
 }
 
-async function updateTaskStatus(id, status, e) {
-    if(e) e.stopPropagation();
-    await fetch(`${API_URL}/tasks/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
-        body: JSON.stringify({ status })
+async function deleteTask(taskId) {
+  if (!confirm("Are you sure you want to delete this task?")) return;
+  try {
+    await fetch(`${API_URL}/tasks/${taskId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': currentToken }
     });
     loadTasks();
+  } catch(err) { console.error(err); }
 }
 
-async function deleteTask(id, e) {
-    if(e) e.stopPropagation();
-    await fetch(`${API_URL}/tasks/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': currentToken }
-    });
-    loadTasks();
+// Stats user detail (admin)
+function showAdminUserData(username) {
+  // Optional expansion if Admin clicks user count. Currently handled by filter dropdown.
 }
 
-init();
+document.getElementById('stat-users-card').addEventListener('click', () => {
+    // Just a nice flourish if clicked
+    document.getElementById('filter-user').focus();
+});

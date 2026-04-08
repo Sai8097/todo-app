@@ -1,86 +1,197 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aesthetic Todo</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskFlow — Smart Todo</title>
+  <meta name="description" content="TaskFlow: A premium todo app with user roles, admin panel, and real-time task management." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
 </head>
+<body onload="init()">
 
-<body>
-    <!-- Animated background layers -->
-    <div class="bg-animated"></div>
-    <div class="bg-blobs">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
-    </div>
+  <!-- Animated Background -->
+  <div class="bg-wrap">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="blob b3"></div>
+  </div>
 
-    <!-- Login Screen -->
-    <div id="login-view" class="view">
-        <div class="glass-container login-card">
-            <h1>Welcome.</h1>
-            <p>Access your timeline.</p>
-            <div class="input-modern">
-                <input type="text" id="username" placeholder="Username (admin, user1, user2)">
-            </div>
-            <button class="btn-glow" onclick="login()">Enter Workspace</button>
-            <div id="login-error" class="error"></div>
+  <!-- ════════════════════════════════════════════
+       LOGIN PAGE
+  ════════════════════════════════════════════ -->
+  <div id="page-login">
+    <div class="login-card glass">
+      <div class="brand">
+        <div class="brand-icon">✓</div>
+        <h1>TaskFlow</h1>
+        <p>Sign in to manage your tasks</p>
+      </div>
+
+      <div class="form-group">
+        <label for="inp-username">Username</label>
+        <input id="inp-username" type="text" placeholder="e.g. admin, alice, bob" autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label for="inp-password">Password</label>
+        <div class="pw-wrap">
+          <input id="inp-password" type="password" placeholder="Your password" autocomplete="current-password" onkeydown="if(event.key==='Enter') login()" />
+          <button class="pw-toggle" onclick="togglePw()" id="pw-eye" title="Show/hide password">👁</button>
         </div>
+      </div>
+
+      <p id="login-error" class="error-msg hidden"></p>
+
+      <button class="btn-primary w-full" onclick="login()" id="btn-login">
+        <span id="btn-login-text">Sign In</span>
+        <span id="btn-login-spin" class="spinner hidden"></span>
+      </button>
+
+      <div class="login-hint glass-subtle">
+        <strong>Demo credentials:</strong><br />
+        admin / admin123 &nbsp;|&nbsp; alice / alice123<br/>
+        bob / bob123 &nbsp;|&nbsp; charlie / charlie123
+      </div>
     </div>
+  </div>
 
-    <!-- Dashboard Screen -->
-    <div id="dashboard-view" class="view hidden">
-        <nav class="glass-nav">
-            <div>
-                <h1 id="welcome-message" class="gradient-text">Timeline</h1>
-                <span id="role-badge" class="badge"></span>
-            </div>
-            <!-- Logout Icon -->
-            <button class="btn-transparent" onclick="logout()">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-            </button>
-        </nav>
+  <!-- ════════════════════════════════════════════
+       DASHBOARD PAGE
+  ════════════════════════════════════════════ -->
+  <div id="page-dashboard" class="hidden">
 
-        <main class="dashboard-content">
-            <div class="timeline-board" id="tasks-container">
-                <!-- Data columns are dynamically injected here -->
-            </div>
-        </main>
+    <!-- NAVBAR -->
+    <nav class="navbar glass">
+      <div class="nav-brand">
+        <span class="nav-icon">✓</span>
+        <span class="nav-title">TaskFlow</span>
+      </div>
+      <div class="nav-right">
+        <span id="badge-user" class="user-badge"></span>
+        <span id="badge-role" class="role-badge"></span>
+        <button class="btn-outline" onclick="logout()" id="btn-logout">Sign Out</button>
+      </div>
+    </nav>
 
-        <!-- Floating Action Button -->
-        <button class="fab" onclick="toggleModal('add-task-modal')">+</button>
-    </div>
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
 
-    <!-- Add Task Modal -->
-    <div class="modal-overlay hidden" id="add-task-modal">
-        <div class="modal-content glass-container">
-            <h2>New Pulse</h2>
-            <div class="form-group">
-                <input type="text" id="new-title" class="input-flush" placeholder="What's the next pulse?">
-            </div>
-            <div class="form-row">
-                <input type="date" id="new-date" class="input-pill">
-                <select id="new-priority" class="input-pill">
-                    <option value="High">🔥 High</option>
-                    <option value="Medium" selected>⚡ Medium</option>
-                    <option value="Low">🌱 Low</option>
-                </select>
-            </div>
-            <div class="modal-actions">
-                <button class="btn-transparent" style="flex: 1;" onclick="toggleModal('add-task-modal')">Cancel</button>
-                <button class="btn-glow" style="flex: 2;" onclick="addTask()">Ignite Task</button>
-            </div>
+      <!-- STATS BAR -->
+      <section class="stats-bar">
+        <div class="stat-card glass-subtle">
+          <div class="stat-num" id="stat-total">0</div>
+          <div class="stat-label">Total Tasks</div>
         </div>
-    </div>
+        <div class="stat-card glass-subtle">
+          <div class="stat-num green" id="stat-done">0</div>
+          <div class="stat-label">Completed</div>
+        </div>
+        <div class="stat-card glass-subtle">
+          <div class="stat-num yellow" id="stat-pending">0</div>
+          <div class="stat-label">Pending</div>
+        </div>
+        <!-- Admin only: user count -->
+        <div class="stat-card glass-subtle" id="stat-users-card" style="display:none">
+          <div class="stat-num purple" id="stat-users">0</div>
+          <div class="stat-label">Users</div>
+        </div>
+      </section>
 
-    <script src="app.js"></script>
+      <!-- FILTER BAR -->
+      <section class="filter-bar">
+        <div class="filter-tabs">
+          <button class="tab active" id="tab-all" onclick="setFilter('all')">All</button>
+          <button class="tab" id="tab-pending" onclick="setFilter('pending')">Pending</button>
+          <button class="tab" id="tab-done" onclick="setFilter('done')">Completed</button>
+        </div>
+        <div class="filter-right">
+          <!-- Admin: filter by user -->
+          <select id="filter-user" class="select-sm hidden" onchange="loadTasks()">
+            <option value="">All Users</option>
+          </select>
+          <button class="btn-primary sm" onclick="openAddModal()" id="btn-add-task">
+            + Add Task
+          </button>
+        </div>
+      </section>
+
+      <!-- TASK LIST -->
+      <section class="task-list" id="task-list">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">📋</div>
+          <p>No tasks yet. Click <strong>+ Add Task</strong> to get started!</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       ADD / EDIT TASK MODAL
+  ════════════════════════════════════════════ -->
+  <div id="modal-task" class="modal-overlay hidden" onclick="closeModalOnBg(event)">
+    <div class="modal-box glass">
+      <div class="modal-header">
+        <h2 id="modal-title">Add Task</h2>
+        <button class="btn-icon-close" onclick="closeModal()" title="Close">✕</button>
+      </div>
+
+      <input type="hidden" id="edit-task-id" />
+
+      <div class="form-group">
+        <label for="inp-title">Task Title *</label>
+        <input id="inp-title" type="text" placeholder="What needs to be done?" />
+      </div>
+      <div class="form-group">
+        <label for="inp-desc">Description</label>
+        <textarea id="inp-desc" placeholder="Optional details..."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="inp-priority">Priority</label>
+          <select id="inp-priority">
+            <option value="High">🔥 High</option>
+            <option value="Medium" selected>⚡ Medium</option>
+            <option value="Low">🌱 Low</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="inp-due">Due Date</label>
+          <input id="inp-due" type="date" />
+        </div>
+      </div>
+
+      <!-- Admin: assign to user -->
+      <div class="form-group hidden" id="assign-group">
+        <label for="inp-assign">Assign to User</label>
+        <select id="inp-assign">
+          <option value="">— Assign to myself (admin) —</option>
+        </select>
+      </div>
+
+      <p id="modal-error" class="error-msg hidden"></p>
+
+      <div class="modal-actions">
+        <button class="btn-outline" onclick="closeModal()">Cancel</button>
+        <button class="btn-primary" onclick="saveTask()" id="btn-save-task">Save Task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       ADMIN: VIEW USER DATA MODAL
+  ════════════════════════════════════════════ -->
+  <div id="modal-user-data" class="modal-overlay hidden" onclick="closeUserDataModalOnBg(event)">
+    <div class="modal-box glass wide">
+      <div class="modal-header">
+        <h2 id="modal-user-title">User Tasks</h2>
+        <button class="btn-icon-close" onclick="closeUserDataModal()" title="Close">✕</button>
+      </div>
+      <div id="modal-user-tasks" class="task-list modal-task-list"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
-
 </html>
